@@ -34,10 +34,10 @@ views.
 - Xcode 27+
 
 PrismCore uses [OKLCHKit](https://github.com/danielcr12/OKLCHKit) for color
-rendering, perceptual color conversion, and adaptive palette construction. The
-package includes the shared
-`PrismBackgroundFoundation` implementation as a local package dependency so a
-GitHub checkout remains self-contained.
+rendering, perceptual color conversion, and adaptive palette construction. Its
+shared background construction is provided by the versioned
+[PrismBackgroundFoundation](https://github.com/danielcr12/PrismBackgroundFoundation)
+package.
 
 ## Installation
 
@@ -53,7 +53,7 @@ Or add PrismCore to another `Package.swift`:
 dependencies: [
     .package(
         url: "https://github.com/danielcr12/PrismCore.git",
-        from: "0.1.0"
+        from: "1.0.0"
     )
 ]
 ```
@@ -180,7 +180,7 @@ emphasis that should not depend on the global toggle.
 ```text
 Sources/PrismCore/                         Public PrismCore API and modifiers
 Sources/PrismCore/Resources/Noise.metal    Debanding and noise shaders
-PrismBackgroundFoundation/                 Shared background construction
+PrismBackgroundFoundation/                 Local companion-package checkout
 Tests/PrismCoreTests/                      Configuration policy tests
 ```
 

@@ -7,6 +7,13 @@ and this project uses semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-04
+
+### Fixed
+
+- Lowered the package manifest requirement from Swift tools 6.4 to 6.3 so
+  PrismCore can resolve in Xcode installations using Swift 6.3.3.
+
 ## [1.0.0] - 2026-09-03
 
 ### Added

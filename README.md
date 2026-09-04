@@ -30,8 +30,8 @@ views.
 ## Requirements
 
 - iOS 26.0+
-- Swift 6.4+
-- Xcode 27+
+- Swift 6.3+
+- Xcode 26+
 
 PrismCore uses [OKLCHKit](https://github.com/danielcr12/OKLCHKit) for color
 rendering, perceptual color conversion, and adaptive palette construction. Its
@@ -53,7 +53,7 @@ Or add PrismCore to another `Package.swift`:
 dependencies: [
     .package(
         url: "https://github.com/danielcr12/PrismCore.git",
-        from: "1.0.0"
+        from: "1.0.1"
     )
 ]
 ```

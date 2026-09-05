@@ -29,11 +29,11 @@ private struct PrismScreenBackgroundModifier: ViewModifier {
                     identity: identity
                 )
                 .equatable()
+                .animation(
+                    accessibility.reduceMotion ? nil : .easeInOut(duration: 0.42),
+                    value: identity
+                )
             }
-            .animation(
-                accessibility.reduceMotion ? nil : .easeInOut(duration: 0.42),
-                value: identity
-            )
     }
 }
 

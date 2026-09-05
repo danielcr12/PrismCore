@@ -10,19 +10,15 @@ private struct PrismCardInputs: Equatable {
 
     let mode: Mode
     let cornerRadius: CGFloat
-    let outlineEnabled: Bool
     let outlineStyle: PrismOutlineStyle
     let outlineWidth: Double
     let intensity: PrismIntensity
-    let highlightEnabled: Bool
-    let highlightSignature: Int
-    let outlineColorSignature: Int
+    let highlightColor: Color?
+    let outlineColor: Color?
 }
 
 private struct PrismCardBackground: View, Equatable {
     let inputs: PrismCardInputs
-    let highlightColor: Color?
-    let outlineColor: Color
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.inputs == rhs.inputs
@@ -39,7 +35,7 @@ private struct PrismCardBackground: View, Equatable {
     }
 
     @ViewBuilder private var highlightOverlay: some View {
-        if inputs.highlightEnabled, let highlightColor {
+        if let highlightColor = inputs.highlightColor {
             RoundedRectangle(cornerRadius: inputs.cornerRadius, style: .continuous)
                 .fill(highlightColor.opacity(highlightOpacity))
                 .blendMode(.plusLighter)
@@ -48,7 +44,7 @@ private struct PrismCardBackground: View, Equatable {
     }
 
     @ViewBuilder private var outlineOverlay: some View {
-        if inputs.outlineEnabled {
+        if let outlineColor = inputs.outlineColor {
             RoundedRectangle(cornerRadius: inputs.cornerRadius, style: .continuous)
                 .strokeBorder(
                     outlineColor.opacity(PrismOutlineRenderer.opacity(for: inputs.intensity)),
@@ -176,21 +172,15 @@ private struct PrismCardModifier: ViewModifier {
         let inputs = PrismCardInputs(
             mode: mode,
             cornerRadius: CGFloat(configuration.cornerRadius),
-            outlineEnabled: outlineEnabled,
             outlineStyle: outlineStyle,
             outlineWidth: configuration.outline.width,
             intensity: configuration.isEnabled ? configuration.intensity : .moderate,
-            highlightEnabled: highlightColor != nil,
-            highlightSignature: colorSignature(highlightColor),
-            outlineColorSignature: outlineEnabled ? colorSignature(palette.accentColor) : 0
+            highlightColor: highlightColor,
+            outlineColor: outlineEnabled ? palette.accentColor : nil
         )
 
         content.background {
-            PrismCardBackground(
-                inputs: inputs,
-                highlightColor: highlightColor,
-                outlineColor: palette.accentColor
-            )
+            PrismCardBackground(inputs: inputs)
             .equatable()
         }
     }
@@ -294,22 +284,16 @@ private struct PrismListRowModifier: ViewModifier {
         let inputs = PrismCardInputs(
             mode: mode,
             cornerRadius: CGFloat(configuration.cornerRadius),
-            outlineEnabled: outlineEnabled,
             outlineStyle: configuration.outline.style,
             outlineWidth: configuration.outline.width,
             intensity: configuration.isEnabled ? configuration.intensity : .moderate,
-            highlightEnabled: false,
-            highlightSignature: 0,
-            outlineColorSignature: outlineEnabled ? colorSignature(palette.accentColor) : 0
+            highlightColor: nil,
+            outlineColor: outlineEnabled ? palette.accentColor : nil
         )
 
         content
             .listRowBackground(
-                PrismCardBackground(
-                    inputs: inputs,
-                    highlightColor: nil,
-                    outlineColor: palette.accentColor
-                )
+                PrismCardBackground(inputs: inputs)
                 .equatable()
             )
             .listRowSeparatorTint(separatorColor(for: configuration.intensity))
@@ -395,25 +379,6 @@ public extension View {
     func prismListRow() -> some View {
         modifier(PrismListRowModifier())
     }
-}
-
-@MainActor
-private func colorSignature(_ color: Color?) -> Int {
-    guard let color else { return 0 }
-    let resolved = UIColor(color)
-    var red: CGFloat = 0
-    var green: CGFloat = 0
-    var blue: CGFloat = 0
-    var alpha: CGFloat = 0
-    guard resolved.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
-        return resolved.hash
-    }
-    var hasher = Hasher()
-    hasher.combine(Int((red * 255).rounded()))
-    hasher.combine(Int((green * 255).rounded()))
-    hasher.combine(Int((blue * 255).rounded()))
-    hasher.combine(Int((alpha * 255).rounded()))
-    return hasher.finalize()
 }
 
 private func separatorColor(for intensity: PrismIntensity) -> Color {

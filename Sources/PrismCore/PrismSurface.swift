@@ -2,7 +2,6 @@ import SwiftUI
 
 private struct PrismSurfaceModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
-    @Environment(\.prismPalette) private var palette
     @Environment(\.prismAccessibility) private var accessibility
 
     let style: PrismLiquidStyle

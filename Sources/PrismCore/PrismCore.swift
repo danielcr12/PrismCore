@@ -36,6 +36,21 @@ public struct PrismOutline: Codable, Equatable, Sendable {
         self.width = width
         self.style = style
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case isEnabled
+        case width
+        case style
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
+        width = try container.decodeIfPresent(Double.self, forKey: .width) ?? 1.3
+
+        let rawStyle = try container.decodeIfPresent(String.self, forKey: .style)
+        style = rawStyle.flatMap(PrismOutlineStyle.init(rawValue:)) ?? .solid
+    }
 }
 
 public enum PrismOutlineVisibility: Equatable, Sendable {
@@ -56,6 +71,17 @@ public struct PrismNoise: Codable, Equatable, Sendable {
     public init(isEnabled: Bool = false, opacity: Double = 0.6) {
         self.isEnabled = isEnabled
         self.opacity = opacity
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case isEnabled
+        case opacity
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
+        opacity = try container.decodeIfPresent(Double.self, forKey: .opacity) ?? 0.6
     }
 }
 
@@ -104,25 +130,32 @@ public struct PrismConfiguration: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Fall back to .solid when the persisted value is the removed "material" case.
-        let rawMaterial = try container.decode(String.self, forKey: .material)
-        let decodedMaterial = PrismMaterial(rawValue: rawMaterial) ?? .solid
+        let defaults = Self.default
+        let rawMaterial = try container.decodeIfPresent(String.self, forKey: .material)
+        let rawIntensity = try container.decodeIfPresent(String.self, forKey: .intensity)
         self.init(
-            isEnabled: try container.decode(Bool.self, forKey: .isEnabled),
-            immersiveBackgroundEnabled: try container.decode(
+            isEnabled: try container.decodeIfPresent(Bool.self, forKey: .isEnabled)
+                ?? defaults.isEnabled,
+            immersiveBackgroundEnabled: try container.decodeIfPresent(
                 Bool.self,
                 forKey: .immersiveBackgroundEnabled
-            ),
-            material: decodedMaterial,
-            intensity: try container.decode(PrismIntensity.self, forKey: .intensity),
-            cornerRadius: try container.decode(Double.self, forKey: .cornerRadius),
-            noise: try container.decode(PrismNoise.self, forKey: .noise),
-            outline: try container.decode(PrismOutline.self, forKey: .outline),
-            highlightsEnabled: try container.decode(Bool.self, forKey: .highlightsEnabled)
+            ) ?? defaults.immersiveBackgroundEnabled,
+            material: rawMaterial.flatMap(PrismMaterial.init(rawValue:)) ?? defaults.material,
+            intensity: rawIntensity.flatMap(PrismIntensity.init(rawValue:)) ?? defaults.intensity,
+            cornerRadius: try container.decodeIfPresent(Double.self, forKey: .cornerRadius)
+                ?? defaults.cornerRadius,
+            noise: try container.decodeIfPresent(PrismNoise.self, forKey: .noise)
+                ?? defaults.noise,
+            outline: try container.decodeIfPresent(PrismOutline.self, forKey: .outline)
+                ?? defaults.outline,
+            highlightsEnabled: try container.decodeIfPresent(
+                Bool.self,
+                forKey: .highlightsEnabled
+            ) ?? defaults.highlightsEnabled
         )
     }
 
-    public func normalized(for accessibility: PrismAccessibility = .default) -> Self {
+    public func resolved(for accessibility: PrismAccessibility = .default) -> PrismResolvedConfiguration {
         var result = self
         result.immersiveBackgroundEnabled = result.isEnabled && result.immersiveBackgroundEnabled
         result.cornerRadius = min(max(result.cornerRadius, 16), 36)
@@ -139,14 +172,57 @@ public struct PrismConfiguration: Codable, Equatable, Sendable {
         if accessibility.reduceTransparency {
             result.material = .solid
         }
-        if !result.immersiveBackgroundEnabled, result.material == .glass {
-            result.material = .solid
-        }
-        if result.material == .liquid {
-            result.noise.isEnabled = false
-            result.outline.isEnabled = false
-        }
-        return result
+
+        return PrismResolvedConfiguration(
+            configuration: result,
+            accessibility: accessibility
+        )
+    }
+
+    @available(*, deprecated, message: "Use resolved(for:) to keep requested and render-ready state distinct.")
+    public func normalized(for accessibility: PrismAccessibility = .default) -> Self {
+        resolved(for: accessibility).configuration
+    }
+}
+
+/// Immutable, render-ready Prism state derived from user configuration and accessibility.
+public struct PrismResolvedConfiguration: Equatable, Sendable {
+    public let isEnabled: Bool
+    public let immersiveBackgroundEnabled: Bool
+    public let material: PrismMaterial
+    public let intensity: PrismIntensity
+    public let cornerRadius: Double
+    public let noise: PrismNoise
+    public let outline: PrismOutline
+    public let highlightsEnabled: Bool
+    public let accessibility: PrismAccessibility
+
+    fileprivate init(
+        configuration: PrismConfiguration,
+        accessibility: PrismAccessibility
+    ) {
+        isEnabled = configuration.isEnabled
+        immersiveBackgroundEnabled = configuration.immersiveBackgroundEnabled
+        material = configuration.material
+        intensity = configuration.intensity
+        cornerRadius = configuration.cornerRadius
+        noise = configuration.noise
+        outline = configuration.outline
+        highlightsEnabled = configuration.highlightsEnabled
+        self.accessibility = accessibility
+    }
+
+    fileprivate var configuration: PrismConfiguration {
+        PrismConfiguration(
+            isEnabled: isEnabled,
+            immersiveBackgroundEnabled: immersiveBackgroundEnabled,
+            material: material,
+            intensity: intensity,
+            cornerRadius: cornerRadius,
+            noise: noise,
+            outline: outline,
+            highlightsEnabled: highlightsEnabled
+        )
     }
 }
 
@@ -159,6 +235,17 @@ public struct PrismAccessibility: Equatable, Sendable {
     public init(reduceMotion: Bool = false, reduceTransparency: Bool = false) {
         self.reduceMotion = reduceMotion
         self.reduceTransparency = reduceTransparency
+    }
+
+    static func resolving(
+        override: Self?,
+        reduceMotion: Bool,
+        reduceTransparency: Bool
+    ) -> Self {
+        override ?? Self(
+            reduceMotion: reduceMotion,
+            reduceTransparency: reduceTransparency
+        )
     }
 }
 
@@ -189,6 +276,26 @@ public enum PrismBackdrop: Equatable, Sendable {
     case solid(Color)
     case gradient(PrismGradientBackdrop)
     case mesh([Color])
+
+    public static func mesh(_ palette: PrismMeshPalette) -> Self {
+        .mesh(palette.colors)
+    }
+}
+
+/// A canonical 4-by-4 color field for a Prism mesh backdrop.
+public struct PrismMeshPalette: Equatable, Sendable, ExpressibleByArrayLiteral {
+    public static let colorCount = 16
+
+    public let colors: [Color]
+
+    public init(colors: [Color], fallback: Color = Color(uiColor: .systemGroupedBackground)) {
+        let source = colors.isEmpty ? [fallback] : colors
+        self.colors = (0..<Self.colorCount).map { source[$0 % source.count] }
+    }
+
+    public init(arrayLiteral elements: Color...) {
+        self.init(colors: elements)
+    }
 }
 
 public struct PrismPalette: Equatable, Sendable {
@@ -206,18 +313,24 @@ public struct PrismPalette: Equatable, Sendable {
     }
 }
 
-public enum PrismLiquidStyle: String, CaseIterable, Codable, Equatable, Sendable {
+public enum PrismGlassStyle: String, CaseIterable, Codable, Equatable, Sendable {
     case clear
     case regular
 }
 
-public enum PrismCardStyle: Equatable, Sendable {
+@available(*, deprecated, renamed: "PrismGlassStyle")
+public typealias PrismLiquidStyle = PrismGlassStyle
+
+public enum PrismSurfaceStyle: Equatable, Sendable {
     case automatic
     case clear
     case solid
     case glass
-    case liquid(PrismLiquidStyle)
+    case liquid(PrismGlassStyle)
 }
+
+/// Compatibility name for the shared style used by Prism cards and surfaces.
+public typealias PrismCardStyle = PrismSurfaceStyle
 
 public enum PrismHighlightStyle: Equatable, Sendable {
     case none
@@ -226,38 +339,63 @@ public enum PrismHighlightStyle: Equatable, Sendable {
 }
 
 /// The geometric shape used by a Prism surface that needs a glass treatment.
-public enum PrismSurfaceShape: Equatable, Sendable {
+public enum PrismSurfaceShape: Shape, Equatable, Sendable {
     case capsule
     case rectangle
     case roundedRectangle(cornerRadius: Double)
+
+    nonisolated public func path(in rect: CGRect) -> Path {
+        switch self {
+        case .capsule:
+            Capsule().path(in: rect)
+        case .rectangle:
+            Rectangle().path(in: rect)
+        case let .roundedRectangle(cornerRadius):
+            RoundedRectangle(
+                cornerRadius: CGFloat(cornerRadius),
+                style: .continuous
+            )
+            .path(in: rect)
+        }
+    }
 }
 
-private struct PrismConfigurationKey: EnvironmentKey {
-    static let defaultValue = PrismConfiguration.default
-}
+public enum PrismRenderingQuality: String, CaseIterable, Codable, Equatable, Sendable {
+    /// Uses debanding only where gradients benefit from it and honors configured noise.
+    case automatic
 
-private struct PrismPaletteKey: EnvironmentKey {
-    static let defaultValue = PrismPalette.default
-}
+    /// Disables optional full-screen shader work.
+    case reduced
 
-private struct PrismAccessibilityKey: EnvironmentKey {
-    static let defaultValue = PrismAccessibility.default
+    /// Enables debanding for every immersive backdrop and honors configured noise.
+    case full
 }
 
 public extension EnvironmentValues {
-    var prismConfiguration: PrismConfiguration {
-        get { self[PrismConfigurationKey.self] }
-        set { self[PrismConfigurationKey.self] = newValue }
-    }
+    @Entry var prismConfiguration = PrismConfiguration.default
+    @Entry var prismPalette = PrismPalette.default
+    @Entry var prismAccessibilityOverride: PrismAccessibility?
+    @Entry var prismRenderingQuality = PrismRenderingQuality.automatic
 
-    var prismPalette: PrismPalette {
-        get { self[PrismPaletteKey.self] }
-        set { self[PrismPaletteKey.self] = newValue }
-    }
-
+    @available(*, deprecated, message: "Use prismAccessibilityOverride; nil follows system accessibility settings.")
     var prismAccessibility: PrismAccessibility {
-        get { self[PrismAccessibilityKey.self] }
-        set { self[PrismAccessibilityKey.self] = newValue }
+        get { prismAccessibilityOverride ?? .default }
+        set { prismAccessibilityOverride = newValue }
+    }
+}
+
+private struct PrismEnvironmentModifier: ViewModifier {
+    let configuration: PrismConfiguration
+    let palette: PrismPalette
+    let accessibilityOverride: PrismAccessibility?
+    let renderingQuality: PrismRenderingQuality
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.prismConfiguration, configuration)
+            .environment(\.prismPalette, palette)
+            .environment(\.prismAccessibilityOverride, accessibilityOverride)
+            .environment(\.prismRenderingQuality, renderingQuality)
     }
 }
 
@@ -265,10 +403,16 @@ public extension View {
     func prismEnvironment(
         configuration: PrismConfiguration,
         palette: PrismPalette,
-        accessibility: PrismAccessibility
+        accessibility: PrismAccessibility? = nil,
+        renderingQuality: PrismRenderingQuality = .automatic
     ) -> some View {
-        environment(\.prismConfiguration, configuration)
-            .environment(\.prismPalette, palette)
-            .environment(\.prismAccessibility, accessibility)
+        modifier(
+            PrismEnvironmentModifier(
+                configuration: configuration,
+                palette: palette,
+                accessibilityOverride: accessibility,
+                renderingQuality: renderingQuality
+            )
+        )
     }
 }

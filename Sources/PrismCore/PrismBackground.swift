@@ -5,6 +5,7 @@ import UIKit
 private struct PrismBackgroundIdentity: Equatable {
     let backdrop: PrismBackdrop
     let immersiveBackgroundEnabled: Bool
+    let ditherEnabled: Bool
     let noiseEnabled: Bool
     let noiseOpacity: Double
 }
@@ -12,14 +13,23 @@ private struct PrismBackgroundIdentity: Equatable {
 private struct PrismScreenBackgroundModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
     @Environment(\.prismPalette) private var palette
-    @Environment(\.prismAccessibility) private var accessibility
+    @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
+    @Environment(\.prismRenderingQuality) private var renderingQuality
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        let configuration = requestedConfiguration.normalized(for: accessibility)
+        let accessibility = PrismAccessibility.resolving(
+            override: accessibilityOverride,
+            reduceMotion: reduceMotion,
+            reduceTransparency: reduceTransparency
+        )
+        let configuration = requestedConfiguration.resolved(for: accessibility)
         let identity = PrismBackgroundIdentity(
             backdrop: palette.backdrop,
             immersiveBackgroundEnabled: configuration.immersiveBackgroundEnabled,
-            noiseEnabled: configuration.noise.isEnabled,
+            ditherEnabled: ditherEnabled(for: palette.backdrop),
+            noiseEnabled: configuration.noise.isEnabled && renderingQuality != .reduced,
             noiseOpacity: configuration.noise.opacity
         )
 
@@ -34,6 +44,17 @@ private struct PrismScreenBackgroundModifier: ViewModifier {
                     value: identity
                 )
             }
+    }
+
+    private func ditherEnabled(for backdrop: PrismBackdrop) -> Bool {
+        switch renderingQuality {
+        case .reduced:
+            false
+        case .automatic:
+            if case .gradient = backdrop { true } else { false }
+        case .full:
+            true
+        }
     }
 }
 
@@ -50,7 +71,10 @@ private struct PrismBackgroundLayer: View, Equatable {
                 Color(uiColor: .systemGroupedBackground)
             } else {
                 PrismBackdropView(backdrop: identity.backdrop)
-                    .colorEffect(shaderLibrary.debandingDither())
+                    .colorEffect(
+                        shaderLibrary.debandingDither(),
+                        isEnabled: identity.ditherEnabled
+                    )
                     .overlay {
                         if identity.noiseEnabled {
                             PrismNoiseLayer(opacity: identity.noiseOpacity)
@@ -137,7 +161,11 @@ private struct PrismMeshBackground: View {
     ]
 
     private static func meshColors(from colors: [Color]) -> [Color] {
-        (0..<16).map { colors[$0 % colors.count] }
+        if colors.count == PrismMeshPalette.colorCount {
+            colors
+        } else {
+            PrismMeshPalette(colors: colors).colors
+        }
     }
 }
 

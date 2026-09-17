@@ -11,9 +11,7 @@ half4 parameterizedNoise(
     float opacity
 ) {
     float2 scaledPos = fmod(position * frequency, float2(10000.0, 10000.0));
-    float n = fract(sin(dot(scaledPos, float2(12.9898, 78.233))) * 43758.5453);
-    n = fract(sin(n * 43758.5453 + scaledPos.x) * 22578.1459);
-    n = fract(sin(n * 22578.1459 + scaledPos.y) * 19483.7593);
+    float n = fract(52.9829189 * fract(dot(scaledPos, float2(0.06711056, 0.00583715))));
 
     float overlay = (n - 0.5) * 2.0 * intensity;
     float3 base = float3(color.rgb);

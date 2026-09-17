@@ -7,10 +7,13 @@ Before opening a change:
 
 ```sh
 swift package dump-package
-swift test
+xcodebuild \
+  -scheme PrismCore \
+  -destination 'platform=iOS Simulator,name=iPhone 17e' \
+  test
 ```
 
 Changes to rendering behavior should include focused tests for configuration
-normalization where possible and should describe any required device or
+resolution where possible and should describe any required device or
 simulator visual validation. Avoid changing persisted configuration values or
 public symbols without documenting the migration path.

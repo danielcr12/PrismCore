@@ -5,7 +5,7 @@ private struct PrismCardInputs: Equatable {
         case clear
         case solid
         case glass
-        case liquid(PrismLiquidStyle)
+        case liquid(PrismGlassStyle)
     }
 
     let mode: Mode
@@ -149,15 +149,21 @@ private enum PrismOutlineRenderer {
 private struct PrismCardModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
     @Environment(\.prismPalette) private var palette
-    @Environment(\.prismAccessibility) private var accessibility
+    @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    let style: PrismCardStyle
+    let style: PrismSurfaceStyle
     let highlight: PrismHighlightStyle
     let outlineVisibility: PrismOutlineVisibility
     let outlineStyleOverride: PrismOutlineStyle?
 
     func body(content: Content) -> some View {
-        let configuration = requestedConfiguration.normalized(for: accessibility)
+        let accessibility = PrismAccessibility.resolving(
+            override: accessibilityOverride,
+            reduceMotion: false,
+            reduceTransparency: reduceTransparency
+        )
+        let configuration = requestedConfiguration.resolved(for: accessibility)
         let mode = resolvedMode(configuration: configuration)
         let highlightColor = resolvedHighlight(configuration: configuration)
         let outlineStyle = outlineStyleOverride ?? configuration.outline.style
@@ -185,7 +191,7 @@ private struct PrismCardModifier: ViewModifier {
         }
     }
 
-    private func resolvedMode(configuration: PrismConfiguration) -> PrismCardInputs.Mode {
+    private func resolvedMode(configuration: PrismResolvedConfiguration) -> PrismCardInputs.Mode {
         switch style {
         case .automatic:
             switch configuration.material {
@@ -198,14 +204,14 @@ private struct PrismCardModifier: ViewModifier {
         case .solid:
             .solid
         case .glass:
-            accessibility.reduceTransparency ? .solid : .glass
+            configuration.accessibility.reduceTransparency ? .solid : .glass
         case let .liquid(style):
-            accessibility.reduceTransparency ? .solid : .liquid(style)
+            configuration.accessibility.reduceTransparency ? .solid : .liquid(style)
         }
     }
 
     private func resolvedHighlight(
-        configuration: PrismConfiguration
+        configuration: PrismResolvedConfiguration
     ) -> Color? {
         switch highlight {
         case .none:
@@ -221,14 +227,20 @@ private struct PrismCardModifier: ViewModifier {
 private struct PrismOutlineModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
     @Environment(\.prismPalette) private var palette
-    @Environment(\.prismAccessibility) private var accessibility
+    @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     let visibility: PrismOutlineVisibility
     let styleOverride: PrismOutlineStyle?
     let cornerRadius: CGFloat?
 
     func body(content: Content) -> some View {
-        let configuration = requestedConfiguration.normalized(for: accessibility)
+        let accessibility = PrismAccessibility.resolving(
+            override: accessibilityOverride,
+            reduceMotion: false,
+            reduceTransparency: reduceTransparency
+        )
+        let configuration = requestedConfiguration.resolved(for: accessibility)
         let isVisible = switch visibility {
         case .automatic:
             configuration.outline.isEnabled
@@ -239,22 +251,23 @@ private struct PrismOutlineModifier: ViewModifier {
         }
 
         return content.overlay {
-            RoundedRectangle(
-                cornerRadius: cornerRadius ?? CGFloat(configuration.cornerRadius),
-                style: .continuous
-            )
-            .strokeBorder(
-                palette.accentColor.opacity(
-                    PrismOutlineRenderer.opacity(for: configuration.intensity)
-                ),
-                style: PrismOutlineRenderer.strokeStyle(
-                    for: styleOverride ?? configuration.outline.style,
-                    lineWidth: configuration.outline.width
+            if isVisible {
+                RoundedRectangle(
+                    cornerRadius: cornerRadius ?? CGFloat(configuration.cornerRadius),
+                    style: .continuous
                 )
-            )
-            .opacity(isVisible ? 1 : 0)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+                .strokeBorder(
+                    palette.accentColor.opacity(
+                        PrismOutlineRenderer.opacity(for: configuration.intensity)
+                    ),
+                    style: PrismOutlineRenderer.strokeStyle(
+                        for: styleOverride ?? configuration.outline.style,
+                        lineWidth: configuration.outline.width
+                    )
+                )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
         }
     }
 }
@@ -271,10 +284,16 @@ private extension PrismCardInputs.Mode {
 private struct PrismListRowModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
     @Environment(\.prismPalette) private var palette
-    @Environment(\.prismAccessibility) private var accessibility
+    @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        let configuration = requestedConfiguration.normalized(for: accessibility)
+        let accessibility = PrismAccessibility.resolving(
+            override: accessibilityOverride,
+            reduceMotion: false,
+            reduceTransparency: reduceTransparency
+        )
+        let configuration = requestedConfiguration.resolved(for: accessibility)
         let mode: PrismCardInputs.Mode = switch configuration.material {
         case .solid: .solid
         case .glass: .glass
@@ -346,7 +365,7 @@ public extension View {
     /// Applies Prism's card treatment and optionally overrides the configured
     /// outline visibility while retaining its width and intensity.
     func prismCard(
-        _ style: PrismCardStyle = .automatic,
+        _ style: PrismSurfaceStyle = .automatic,
         highlight: PrismHighlightStyle = .none,
         outline: PrismOutlineVisibility = .automatic,
         outlineStyle: PrismOutlineStyle? = nil

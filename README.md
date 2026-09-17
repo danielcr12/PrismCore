@@ -17,7 +17,7 @@ views.
   semantic colors.
 - A standard system-background wash that keeps translucent compositions
   consistent across appearances.
-- Optional Metal debanding dither and parameterized noise.
+- Quality-controlled Metal debanding dither and parameterized noise.
 - Configurable solid, glass, and Liquid Glass card treatments.
 - Automatic and explicit card highlights.
 - Solid, dotted, and segmented outlines.
@@ -53,7 +53,7 @@ Or add PrismCore to another `Package.swift`:
 dependencies: [
     .package(
         url: "https://github.com/danielcr12/PrismCore.git",
-        from: "1.0.1"
+        from: "1.0.2"
     )
 ]
 ```
@@ -62,8 +62,9 @@ Then add the `PrismCore` product to the target that uses it.
 
 ## Basic setup
 
-Inject one configuration, palette, and accessibility snapshot at the root of
-the view hierarchy:
+Inject one configuration and palette at the root of the view hierarchy.
+Prism follows the system Reduce Motion and Reduce Transparency settings by
+default:
 
 ```swift
 import SwiftUI
@@ -99,13 +100,12 @@ struct ExampleView: View {
 
             Text("Liquid Glass surface")
                 .padding()
-                .prismSurface(style: .regular, interactive: true)
+                .prismSurface(.liquid(.regular), interactive: true)
         }
         .padding()
         .prismEnvironment(
             configuration: configuration,
-            palette: palette,
-            accessibility: .default
+            palette: palette
         )
         .prismScreenBackground()
     }
@@ -136,19 +136,38 @@ uses a layered gradient transition instead.
 
 ## Configuration and accessibility
 
-`PrismConfiguration.normalized(for:)` is the policy boundary used by the
-renderers. It clamps numeric values and resolves incompatible combinations:
+`PrismConfiguration.resolved(for:)` creates immutable, render-ready state. It
+clamps numeric values while keeping persisted user choices separate from the
+values consumed by renderers:
 
 - Disabling Prism forces a solid material and turns off immersive background,
   noise, outlines, and highlights.
-- Glass requires an enabled immersive background.
 - Reduce Transparency forces solid rendering.
-- Liquid Glass disables noise and outlines.
 - Corner radius is clamped to 16...36, noise opacity to 0...1, and outline
   width to 1...5.
 
-The normalization step lets callers persist user-facing settings while keeping
-renderers safe when accessibility settings or older persisted values change.
+Surface material and immersive-background preferences are independent. A caller
+can therefore use translucent or Liquid Glass surfaces without enabling an
+immersive screen background. Prism also tolerates missing and unknown values in
+older persisted configuration payloads by falling back to safe defaults.
+
+Pass an explicit `PrismAccessibility` value to `prismEnvironment` only when a
+preview or test needs to override the system settings.
+
+## Rendering quality
+
+`PrismRenderingQuality.automatic` applies debanding only to layered gradients
+and honors the configured noise toggle. Use `.reduced` to disable optional
+full-screen shader work, or `.full` to apply debanding to every immersive
+backdrop. Configure it at the environment boundary:
+
+```swift
+.prismEnvironment(
+    configuration: configuration,
+    palette: palette,
+    renderingQuality: .reduced
+)
+```
 
 ## Public modifiers
 
@@ -162,25 +181,33 @@ content.prismCard(
 content.prismOutline(.always, style: .segmented)
 content.prismListRow()
 content.prismSurface(
-    style: .clear,
+    .liquid(.clear),
     tint: .blue,
     interactive: true,
     shape: .capsule
 )
 ```
 
-Use `PrismCardStyle.automatic` when the card should follow the injected
+Use `PrismSurfaceStyle.automatic` when a card or surface should follow the injected
 configuration. Use `.clear`, `.solid`, `.glass`, or `.liquid(...)` for a
-specific surface treatment. `PrismHighlightStyle.whenEnabled` follows the
+specific treatment. `.glass` is Prism's translucent fill, while `.liquid(...)`
+uses SwiftUI Liquid Glass. `PrismHighlightStyle.whenEnabled` follows the
 configuration's `highlightsEnabled` value; `.always` is useful for semantic
 emphasis that should not depend on the global toggle.
+
+Use `PrismMeshPalette` to canonicalize a mesh's colors once instead of rebuilding
+its 16-color field during view updates:
+
+```swift
+let mesh = PrismMeshPalette(colors: [.blue, .indigo, .purple])
+let palette = PrismPalette(accentColor: .blue, backdrop: .mesh(mesh))
+```
 
 ## Package layout
 
 ```text
 Sources/PrismCore/                         Public PrismCore API and modifiers
 Sources/PrismCore/Resources/Noise.metal    Debanding and noise shaders
-PrismBackgroundFoundation/                 Local companion-package checkout
 Tests/PrismCoreTests/                      Configuration policy tests
 ```
 
@@ -189,11 +216,15 @@ package to keep screen and artwork background construction aligned.
 
 ## Development
 
-From the package directory:
+Because PrismCore is iOS-only, run its tests against an iOS simulator rather
+than using the macOS-hosted `swift test` command:
 
 ```sh
 swift package dump-package
-swift test
+xcodebuild \
+  -scheme PrismCore \
+  -destination 'platform=iOS Simulator,name=iPhone 17e' \
+  test
 ```
 
 Open the package in Xcode for SwiftUI previews and platform-specific rendering

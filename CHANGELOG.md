@@ -21,8 +21,8 @@ and this project uses semantic versioning.
   structural identity when their treatment changes.
 - Configuration decoding now supplies safe defaults for missing or unknown
   persisted values.
-- Replaced the trigonometric procedural-noise hash with a cheaper arithmetic
-  hash and limited automatic debanding to layered gradients.
+- Limited automatic debanding to layered gradients while retaining the
+  original procedural-noise treatment.
 
 ### Deprecated
 

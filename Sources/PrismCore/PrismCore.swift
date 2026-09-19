@@ -1,3 +1,4 @@
+import PrismCoreBackgrounds
 import SwiftUI
 
 public enum PrismMaterial: String, CaseIterable, Codable, Equatable, Sendable {
@@ -288,7 +289,10 @@ public struct PrismMeshPalette: Equatable, Sendable, ExpressibleByArrayLiteral {
 
     public let colors: [Color]
 
-    public init(colors: [Color], fallback: Color = Color(uiColor: .systemGroupedBackground)) {
+    public init(
+        colors: [Color],
+        fallback: Color = PrismBackgroundConstruction.systemBackgroundColor
+    ) {
         let source = colors.isEmpty ? [fallback] : colors
         self.colors = (0..<Self.colorCount).map { source[$0 % source.count] }
     }
@@ -301,7 +305,7 @@ public struct PrismMeshPalette: Equatable, Sendable, ExpressibleByArrayLiteral {
 public struct PrismPalette: Equatable, Sendable {
     public static let `default` = Self(
         accentColor: .accentColor,
-        backdrop: .solid(Color(uiColor: .systemGroupedBackground))
+        backdrop: .solid(PrismBackgroundConstruction.systemBackgroundColor)
     )
 
     public var accentColor: Color
@@ -373,9 +377,23 @@ public enum PrismRenderingQuality: String, CaseIterable, Codable, Equatable, Sen
 
 public extension EnvironmentValues {
     @Entry var prismConfiguration = PrismConfiguration.default
-    @Entry var prismPalette = PrismPalette.default
+    @Entry var prismAccentColor = PrismPalette.default.accentColor
+    @Entry var prismBackdrop = PrismPalette.default.backdrop
     @Entry var prismAccessibilityOverride: PrismAccessibility?
     @Entry var prismRenderingQuality = PrismRenderingQuality.automatic
+
+    var prismPalette: PrismPalette {
+        get {
+            PrismPalette(
+                accentColor: prismAccentColor,
+                backdrop: prismBackdrop
+            )
+        }
+        set {
+            prismAccentColor = newValue.accentColor
+            prismBackdrop = newValue.backdrop
+        }
+    }
 
     @available(*, deprecated, message: "Use prismAccessibilityOverride; nil follows system accessibility settings.")
     var prismAccessibility: PrismAccessibility {
@@ -393,13 +411,28 @@ private struct PrismEnvironmentModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(\.prismConfiguration, configuration)
-            .environment(\.prismPalette, palette)
+            .prismPalette(palette)
             .environment(\.prismAccessibilityOverride, accessibilityOverride)
             .environment(\.prismRenderingQuality, renderingQuality)
     }
 }
 
 public extension View {
+    /// Supplies a complete palette while keeping accent and backdrop updates
+    /// independently comparable in the environment.
+    func prismPalette(_ palette: PrismPalette) -> some View {
+        environment(\.prismAccentColor, palette.accentColor)
+            .environment(\.prismBackdrop, palette.backdrop)
+    }
+
+    func prismAccentColor(_ color: Color) -> some View {
+        environment(\.prismAccentColor, color)
+    }
+
+    func prismBackdrop(_ backdrop: PrismBackdrop) -> some View {
+        environment(\.prismBackdrop, backdrop)
+    }
+
     func prismEnvironment(
         configuration: PrismConfiguration,
         palette: PrismPalette,

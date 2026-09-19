@@ -7,27 +7,35 @@ let package = Package(
     name: "PrismCore",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(
             name: "PrismCore",
             targets: ["PrismCore"]
         ),
+        .library(
+            name: "PrismCoreBackgrounds",
+            targets: ["PrismCoreBackgrounds"]
+        ),
     ],
     dependencies: [
         .package(
-            url: "https://github.com/danielcr12/PrismBackgroundFoundation.git",
+            url: "https://github.com/danielcr12/OKLCHKit.git",
             from: "1.0.0"
         ),
     ],
     targets: [
         .target(
+            name: "PrismCoreBackgrounds",
+            dependencies: [
+                .product(name: "OKLCHKit", package: "OKLCHKit"),
+            ]
+        ),
+        .target(
             name: "PrismCore",
             dependencies: [
-                .product(
-                    name: "PrismBackgroundFoundation",
-                    package: "PrismBackgroundFoundation"
-                ),
+                "PrismCoreBackgrounds",
             ],
             resources: [
                 .process("Resources"),
@@ -42,6 +50,10 @@ let package = Package(
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
             ],
+        ),
+        .testTarget(
+            name: "PrismCoreBackgroundsTests",
+            dependencies: ["PrismCoreBackgrounds"]
         ),
     ]
 )

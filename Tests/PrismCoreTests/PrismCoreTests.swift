@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import PrismCore
 
@@ -146,4 +147,23 @@ import Testing
 
     #expect(!accessibility.reduceMotion)
     #expect(!accessibility.reduceTransparency)
+}
+
+@Test func paletteEnvironmentRoundTripsThroughGranularValues() {
+    var environment = EnvironmentValues()
+    let palette = PrismPalette(
+        accentColor: .orange,
+        backdrop: .solid(.purple)
+    )
+
+    environment.prismPalette = palette
+
+    #expect(environment.prismAccentColor == palette.accentColor)
+    #expect(environment.prismBackdrop == palette.backdrop)
+    #expect(environment.prismPalette == palette)
+
+    environment.prismAccentColor = .green
+
+    #expect(environment.prismPalette.accentColor == .green)
+    #expect(environment.prismPalette.backdrop == palette.backdrop)
 }

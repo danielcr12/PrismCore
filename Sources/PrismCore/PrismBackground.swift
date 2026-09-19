@@ -1,6 +1,9 @@
-import PrismBackgroundFoundation
+import PrismCoreBackgrounds
 import SwiftUI
+
+#if canImport(UIKit)
 import UIKit
+#endif
 
 private struct PrismBackgroundIdentity: Equatable {
     let backdrop: PrismBackdrop
@@ -12,7 +15,7 @@ private struct PrismBackgroundIdentity: Equatable {
 
 private struct PrismScreenBackgroundModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
-    @Environment(\.prismPalette) private var palette
+    @Environment(\.prismBackdrop) private var backdrop
     @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
     @Environment(\.prismRenderingQuality) private var renderingQuality
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -26,9 +29,9 @@ private struct PrismScreenBackgroundModifier: ViewModifier {
         )
         let configuration = requestedConfiguration.resolved(for: accessibility)
         let identity = PrismBackgroundIdentity(
-            backdrop: palette.backdrop,
+            backdrop: backdrop,
             immersiveBackgroundEnabled: configuration.immersiveBackgroundEnabled,
-            ditherEnabled: ditherEnabled(for: palette.backdrop),
+            ditherEnabled: ditherEnabled(for: backdrop),
             noiseEnabled: configuration.noise.isEnabled && renderingQuality != .reduced,
             noiseOpacity: configuration.noise.opacity
         )
@@ -68,7 +71,7 @@ private struct PrismBackgroundLayer: View, Equatable {
     var body: some View {
         Group {
             if !identity.immersiveBackgroundEnabled {
-                Color(uiColor: .systemGroupedBackground)
+                PrismBackgroundConstruction.systemBackgroundColor
             } else {
                 PrismBackdropView(backdrop: identity.backdrop)
                     .colorEffect(
@@ -141,7 +144,7 @@ private struct PrismMeshBackground: View {
     @ViewBuilder
     var body: some View {
         if colors.count < 2 {
-            colors.first ?? Color(uiColor: .systemGroupedBackground)
+            colors.first ?? PrismBackgroundConstruction.systemBackgroundColor
         } else {
             MeshGradient(
                 width: 4,
@@ -192,7 +195,11 @@ private struct PrismNoiseLayer: View, Equatable {
     }
 
     private var effectiveFrequency: Float {
+        #if canImport(UIKit)
         UIDevice.current.userInterfaceIdiom == .pad ? 0.36 : 0.18
+        #else
+        0.18
+        #endif
     }
 }
 

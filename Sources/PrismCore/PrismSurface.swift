@@ -30,10 +30,12 @@ private struct PrismSurfaceModifier: ViewModifier {
         content
             .background(shape.fill(fill(for: mode, intensity: configuration.intensity)))
             .overlay {
-                shape
-                    .stroke(Color.secondary.opacity(borderOpacity(for: mode)), lineWidth: 1)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+                if mode.displaysBorder {
+                    shape
+                        .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
             }
             .glassEffect(glass(for: mode), in: shape)
     }
@@ -77,20 +79,13 @@ private struct PrismSurfaceModifier: ViewModifier {
         case .clear, .glass:
             .clear
         case .solid:
-            tint?.opacity(0.18) ?? Color(uiColor: .secondarySystemGroupedBackground)
+            tint?.opacity(0.18) ?? PrismPlatformColors.secondaryBackground
         case .translucent:
             if let tint {
                 tint.opacity(0.18)
             } else {
-                Color(uiColor: .systemBackground).opacity(fillOpacity(for: intensity))
+                PrismPlatformColors.background.opacity(fillOpacity(for: intensity))
             }
-        }
-    }
-
-    private func borderOpacity(for mode: PrismSurfaceMode) -> Double {
-        switch mode {
-        case .solid, .translucent: 0.22
-        case .clear, .glass: 0
         }
     }
 
@@ -101,6 +96,15 @@ private struct PrismSurfaceModifier: ViewModifier {
         case .moderate: 0.65
         case .strong: 0.58
         case .intense: 0.52
+        }
+    }
+}
+
+private extension PrismSurfaceMode {
+    var displaysBorder: Bool {
+        switch self {
+        case .solid, .translucent: true
+        case .clear, .glass: false
         }
     }
 }

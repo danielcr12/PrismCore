@@ -5,6 +5,20 @@ All notable changes to PrismCore will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses semantic versioning.
 
+## [1.1.0] - 2026-09-20
+
+### Changed
+
+- Split palette-derived accent and backdrop environment values so unrelated
+  visual changes do not invalidate every Prism renderer.
+- Removed irrelevant accessibility subscriptions from outline rendering and
+  skipped inactive surface-border drawing.
+- Moved shared adaptive background construction into the new
+  `PrismCoreBackgrounds` product in this package, replacing the separate
+  `PrismBackgroundFoundation` package dependency.
+- Set the package baseline to iOS 26 and macOS 26 and removed legacy background
+  fallbacks below those versions.
+
 ## [1.0.2] - 2026-09-17
 
 ### Added

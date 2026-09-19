@@ -1,8 +1,8 @@
 # PrismCore
 
-PrismCore is a SwiftUI appearance and surface system for iOS 26 and later. It
-provides a small, typed rendering contract for adaptive backgrounds, cards,
-list rows, outlines, dividers, and Liquid Glass surfaces.
+PrismCore is a SwiftUI appearance and surface system for iOS 26 and macOS 26.
+The `PrismCoreBackgrounds` product provides its lightweight shared background
+rendering for packages such as ImmersiveKit.
 
 The package is designed around one shared configuration and palette so an app
 can change its appearance without scattering rendering policy across feature
@@ -30,14 +30,14 @@ views.
 ## Requirements
 
 - iOS 26.0+
+- macOS 26.0+
 - Swift 6.3+
 - Xcode 26+
 
 PrismCore uses [OKLCHKit](https://github.com/danielcr12/OKLCHKit) for color
-rendering, perceptual color conversion, and adaptive palette construction. Its
-shared background construction is provided by the versioned
-[PrismBackgroundFoundation](https://github.com/danielcr12/PrismBackgroundFoundation)
-package.
+rendering, perceptual color conversion, and adaptive palette construction.
+Shared background construction now lives in this repository as the
+`PrismCoreBackgrounds` product.
 
 ## Installation
 
@@ -53,12 +53,14 @@ Or add PrismCore to another `Package.swift`:
 dependencies: [
     .package(
         url: "https://github.com/danielcr12/PrismCore.git",
-        from: "1.0.2"
+        from: "1.1.0"
     )
 ]
 ```
 
-Then add the `PrismCore` product to the target that uses it.
+Add the `PrismCore` product to an app appearance target. Packages that only need
+the adaptive background construction can depend on `PrismCoreBackgrounds`
+without linking PrismCore's Liquid Glass, card, or Metal shader implementation.
 
 ## Basic setup
 
@@ -154,6 +156,16 @@ older persisted configuration payloads by falling back to safe defaults.
 Pass an explicit `PrismAccessibility` value to `prismEnvironment` only when a
 preview or test needs to override the system settings.
 
+Use `prismPalette(_:)` when supplying a palette independently of the complete
+environment. Accent and backdrop values can also be overridden separately so
+changing one does not invalidate renderers that only consume the other:
+
+```swift
+content
+    .prismAccentColor(.indigo)
+    .prismBackdrop(.gradient(background))
+```
+
 ## Rendering quality
 
 `PrismRenderingQuality.automatic` applies debanding only to layered gradients
@@ -208,26 +220,24 @@ let palette = PrismPalette(accentColor: .blue, backdrop: .mesh(mesh))
 ```text
 Sources/PrismCore/                         Public PrismCore API and modifiers
 Sources/PrismCore/Resources/Noise.metal    Debanding and noise shaders
+Sources/PrismCoreBackgrounds/              Cross-platform adaptive backgrounds
+Tests/PrismCoreBackgroundsTests/           Shared background contract tests
 Tests/PrismCoreTests/                      Configuration policy tests
 ```
 
-`PrismBackgroundFoundation` is also used by the companion ImmersiveKit
-package to keep screen and artwork background construction aligned.
+The companion ImmersiveKit package imports `PrismCoreBackgrounds` to keep screen
+and artwork background construction aligned without depending on the complete
+PrismCore surface system.
 
 ## Development
 
-Because PrismCore is iOS-only, run its tests against an iOS simulator rather
-than using the macOS-hosted `swift test` command:
+Run the package tests on macOS with SwiftPM:
 
 ```sh
-swift package dump-package
-xcodebuild \
-  -scheme PrismCore \
-  -destination 'platform=iOS Simulator,name=iPhone 17e' \
-  test
+swift test
 ```
 
-Open the package in Xcode for SwiftUI previews and platform-specific rendering
+Use Xcode for SwiftUI previews and platform-specific rendering
 inspection. Runtime appearance, accessibility, and shader behavior should be
 validated on a supported iOS device or simulator in addition to source and
 test checks.

@@ -64,7 +64,7 @@ private struct PrismCardBackground: View, Equatable {
                 .overlay(outlineOverlay)
         case .solid:
             roundedRectangle
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                .fill(PrismPlatformColors.secondaryBackground)
                 .overlay(highlightOverlay)
                 .overlay(outlineOverlay)
         case .glass:
@@ -99,11 +99,11 @@ private struct PrismCardBackground: View, Equatable {
 
     private static func fillColor(for intensity: PrismIntensity) -> Color {
         switch intensity {
-        case .verySubtle: Color(uiColor: .systemBackground).opacity(0.80)
-        case .subtle: Color(uiColor: .systemBackground).opacity(0.72)
-        case .moderate: Color(uiColor: .systemBackground).opacity(0.65)
-        case .strong: Color(uiColor: .systemBackground).opacity(0.58)
-        case .intense: Color(uiColor: .systemBackground).opacity(0.52)
+        case .verySubtle: PrismPlatformColors.background.opacity(0.80)
+        case .subtle: PrismPlatformColors.background.opacity(0.72)
+        case .moderate: PrismPlatformColors.background.opacity(0.65)
+        case .strong: PrismPlatformColors.background.opacity(0.58)
+        case .intense: PrismPlatformColors.background.opacity(0.52)
         }
     }
 
@@ -148,7 +148,7 @@ private enum PrismOutlineRenderer {
 
 private struct PrismCardModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
-    @Environment(\.prismPalette) private var palette
+    @Environment(\.prismAccentColor) private var accentColor
     @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
@@ -182,7 +182,7 @@ private struct PrismCardModifier: ViewModifier {
             outlineWidth: configuration.outline.width,
             intensity: configuration.isEnabled ? configuration.intensity : .moderate,
             highlightColor: highlightColor,
-            outlineColor: outlineEnabled ? palette.accentColor : nil
+            outlineColor: outlineEnabled ? accentColor : nil
         )
 
         content.background {
@@ -226,21 +226,14 @@ private struct PrismCardModifier: ViewModifier {
 
 private struct PrismOutlineModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
-    @Environment(\.prismPalette) private var palette
-    @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.prismAccentColor) private var accentColor
 
     let visibility: PrismOutlineVisibility
     let styleOverride: PrismOutlineStyle?
     let cornerRadius: CGFloat?
 
     func body(content: Content) -> some View {
-        let accessibility = PrismAccessibility.resolving(
-            override: accessibilityOverride,
-            reduceMotion: false,
-            reduceTransparency: reduceTransparency
-        )
-        let configuration = requestedConfiguration.resolved(for: accessibility)
+        let configuration = requestedConfiguration.resolved()
         let isVisible = switch visibility {
         case .automatic:
             configuration.outline.isEnabled
@@ -257,7 +250,7 @@ private struct PrismOutlineModifier: ViewModifier {
                     style: .continuous
                 )
                 .strokeBorder(
-                    palette.accentColor.opacity(
+                    accentColor.opacity(
                         PrismOutlineRenderer.opacity(for: configuration.intensity)
                     ),
                     style: PrismOutlineRenderer.strokeStyle(
@@ -283,7 +276,7 @@ private extension PrismCardInputs.Mode {
 
 private struct PrismListRowModifier: ViewModifier {
     @Environment(\.prismConfiguration) private var requestedConfiguration
-    @Environment(\.prismPalette) private var palette
+    @Environment(\.prismAccentColor) private var accentColor
     @Environment(\.prismAccessibilityOverride) private var accessibilityOverride
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
@@ -307,7 +300,7 @@ private struct PrismListRowModifier: ViewModifier {
             outlineWidth: configuration.outline.width,
             intensity: configuration.isEnabled ? configuration.intensity : .moderate,
             highlightColor: nil,
-            outlineColor: outlineEnabled ? palette.accentColor : nil
+            outlineColor: outlineEnabled ? accentColor : nil
         )
 
         content
